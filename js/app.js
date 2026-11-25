@@ -76,6 +76,35 @@
 	function tukRozet(u) { return tukendi(u) ? '<span class="tukendi-et">Tükendi</span>' : ''; }
 	function gunU() { var id = K.gununUrunu, u = id ? urunBul(String(id)) : null; return u && !tukendi(u) ? u : null; }
 	function gunEt(u) { return u && u === gunU() ? '<span class="gunun-et">Günün ürünü</span>' : ''; }
+	/* besin değerleri (isteğe bağlı urun.besin = { kcal, yag, seker, protein, porsiyon }): yalnız dolu alanlar gösterilir;
+	   ondalık Türkçe virgülle (12,5), kcal tam sayı. Hiç sayı yoksa blok çizilmez */
+	function sayi(v, tam) {
+		if (v == null || v === '') return '';
+		var n = Number(String(v).trim().replace(',', '.'));
+		if (!isFinite(n) || n < 0) return '';
+		return tam ? Math.round(n).toLocaleString('tr-TR') : n.toLocaleString('tr-TR', { maximumFractionDigits: 1 });
+	}
+	var BESIN_AD = [['yag', 'Yağ'], ['seker', 'Şeker'], ['protein', 'Protein']];
+	function besin(u) {
+		var b = u && u.besin, o;
+		if (!b || typeof b !== 'object') return null;
+		o = { kcal: sayi(b.kcal, true), ogeler: [], por: String(b.porsiyon == null ? '' : b.porsiyon).trim() };
+		BESIN_AD.forEach(function (a) { var v = sayi(b[a[0]]); if (v) o.ogeler.push([a[1], v]); });
+		return o.kcal || o.ogeler.length ? o : null;
+	}
+	function besinliVar(L) { return (L || []).some(function (u) { return !!besin(u); }); }
+	function besinNot() { var s = K.besinNot == null ? '' : String(K.besinNot).trim(); return s || 'Besin değerleri yaklaşık değerlerdir.'; }
+	function kcalYazi(u, sinif, gizli) { var b = besin(u); return b && b.kcal ? '<span class="' + sinif + '"' + (gizli ? ' aria-hidden="true"' : '') + '>' + kac(b.kcal) + ' kcal</span>' : ''; }
+	/* tek besin bloğu: kalori belirgin, altında yağ/şeker/protein, en altta porsiyon. not=true: yaklaşık bildirimi de bloğun içinde */
+	function besinBlok(u, not) {
+		var b = besin(u), alt;
+		if (!b) return '';
+		alt = not ? (b.por ? b.por + ' için. ' : '') + besinNot() : b.por ? b.por + ' için, yaklaşık' : besinNot();
+		return '<div class="besin" role="group" aria-label="Besin değerleri">' +
+			(b.kcal ? '<p class="b-kcal"><span class="ek-sr">Enerji: </span>' + kac(b.kcal) + ' <span class="b-br">kcal</span></p>' : '') +
+			(b.ogeler.length ? '<dl class="b-ogeler">' + b.ogeler.map(function (o) { return '<div class="b-oge"><dt>' + kac(o[0]) + '</dt> <dd>' + kac(o[1]) + ' <span class="b-br">g</span></dd></div>'; }).join('') + '</dl>' : '') +
+			'<p class="b-por">' + kac(alt) + '</p></div>';
+	}
 	function adresUrl(s) { s = String(s || '').trim(); return /^https?:\/\//i.test(s) ? s : ''; }
 	/* fiyatlar örnekse tek ince şerit (satırlarda rozet yok) */
 	function serit() { return K.fiyatlarOrnek ? '<p class="serit">Fiyatlar örnektir, kafeden teyit edilecek.</p>' : ''; }
@@ -424,7 +453,9 @@
 		bolumEl.innerHTML = '<div class="dv-zemin"><img class="dv-foto" alt=""><img class="dv-foto" alt=""></div>' +
 			geriDugme('', '<h1 class="b-baslik" id="b-ad">' + kac(b.ad) + '</h1><button class="b-sade" type="button" data-is="sade">Tüm menü</button>') +
 			'<div class="dv-sahne gir" role="listbox" aria-labelledby="b-ad" tabindex="0"><div class="dv-halka"></div></div>' +
-			'<div class="dv-bilgi gir"><h2 class="dv-ad" aria-live="polite"></h2><div class="dv-fiyat"></div><p class="dv-aciklama"></p></div>' +
+			/* bölümde besin bilgisi olan ürün yoksa bilgi alanı eskisiyle birebir aynı; varsa yer baştan ayrılır (ürün değişince çark zıplamaz) */
+			(besinliVar(U) ? '<div class="dv-bilgi gir besinli"><h2 class="dv-ad" aria-live="polite"></h2><div class="dv-fiyat"></div><div class="dv-detay"><p class="dv-aciklama"></p><div class="dv-besin"></div></div></div>'
+				: '<div class="dv-bilgi gir"><h2 class="dv-ad" aria-live="polite"></h2><div class="dv-fiyat"></div><p class="dv-aciklama"></p></div>') +
 			'<div class="dv-alt gir"><button class="dv-liste" type="button" data-is="liste">' + (U.length < T.length ? 'Tüm liste (' + T.length + ')' : 'Liste') + '</button><div class="dv-gez"><button class="dv-ok" type="button" data-is="dv" data-v="-1" aria-label="Önceki ürün">' + GERI + '</button><span class="dv-sayi"></span>' +
 			'<button class="dv-ok" type="button" data-is="dv" data-v="1" aria-label="Sonraki ürün">' + ILERI + '</button></div></div>' +
 			'<div class="bl-liste kapali"></div>';
@@ -474,6 +505,12 @@
 		$('.dv-fiyat', bolumEl).innerHTML = fiyat(u);
 		$('.dv-bilgi', bolumEl).classList.toggle('tukendi', tukendi(u));
 		$('.dv-aciklama', bolumEl).textContent = u.aciklama || '';
+		var bk = $('.dv-besin', bolumEl);
+		if (bk) {
+			/* iki sütun: solda içindekiler, sağda besin; açıklama yoksa besin tek başına ortada */
+			bk.innerHTML = besinBlok(u, false);
+			$('.dv-detay', bolumEl).className = 'dv-detay' + (bk.firstChild ? (String(u.aciklama || '').trim() ? ' iki' : ' tek') : '');
+		}
 		$('.dv-sayi', bolumEl).textContent = (i + 1) + ' / ' + dv.U.length;
 		if (dv.acik) dvFoto(u);
 	}
@@ -552,11 +589,11 @@
 		var L = $('.bl-liste', bolumEl);
 		if (kilit || !L || !dv) return;
 		kilitle();
-		L.innerHTML = '<div class="bl-ust"><div class="bl-satir"><button class="geri" type="button" data-is="geri" aria-label="Döner vitrine dön">' + GERI + '</button><h2 class="bl-ad">' + kac(dv.b.ad) + '</h2></div>' + serit() + '</div>' +
+		L.innerHTML = '<div class="bl-ust"><div class="bl-satir"><button class="geri" type="button" data-is="geri" aria-label="Döner vitrine dön">' + GERI + '</button><h2 class="bl-ad">' + kac(dv.b.ad) + '</h2></div>' + serit() + (besinliVar(dv.T) ? '<p class="bl-not">' + kac(besinNot()) + '</p>' : '') + '</div>' +
 			'<ul class="liste">' + dv.T.map(function (u) {
 				return '<li><button class="satir' + (tukendi(u) ? ' tukendi' : '') + '" type="button" data-is="' + (u.yildiz && u.foto ? 'sov' : 'urun') + '" data-v="' + kac(u.id) + '">' + foto(u.foto, u.ad, 's-foto', false, true) +
 					'<span class="s-orta">' + gunEt(u) + '<span class="s-ad">' + kac(u.ad) + '</span>' + (u.aciklama ? '<span class="s-aciklama">' + kac(u.aciklama) + '</span>' : '') + '</span>' +
-					'<span class="s-fiyat">' + fiyat(u) + '</span></button></li>';
+					(besin(u) && besin(u).kcal ? '<span class="s-fiyat kcalli">' + fiyat(u) + kcalYazi(u, 's-kcal') + '</span>' : '<span class="s-fiyat">' + fiyat(u) + '</span>') + '</button></li>';
 			}).join('') + '</ul>';
 		goster(L); L.scrollTop = 0;
 		it({ e: 'liste', kaynak: kaynak });
@@ -576,7 +613,7 @@
 		kilitle();
 		var zk = /\.webp$/.test(u.foto) ? u.foto.replace(/\.webp$/, '-z.webp') : u.foto;
 		yildizEl.innerHTML = '<div class="fs-zemin"><img class="fs-bulanik" src="' + kac(zk) + '" alt="" decoding="async" draggable="false"></div><div class="fs-cerceve"><img class="fs-resim" src="' + kac(u.foto) + '" alt="' + kac(u.ad) + '"></div>' + geriDugme('Döner vitrine dön') +
-			'<div class="fs-alt"><h2 class="fs-ad" id="fs-ad">' + kac(u.ad) + '</h2>' + fiyat(u) + mesajDugme('Bunu sor', u.id) + '</div>';
+			'<div class="fs-alt"><h2 class="fs-ad" id="fs-ad">' + kac(u.ad) + '</h2>' + fiyat(u) + besinBlok(u, true) + mesajDugme('Bunu sor', u.id) + '</div>';
 		yildizEl.setAttribute('aria-labelledby', 'fs-ad');
 		var bl = $('.fs-bulanik', yildizEl); if (bl) bl.addEventListener('error', function () { bl.src = u.foto; }, { once: true });
 		goster(yildizEl);
@@ -842,7 +879,7 @@
 		panelEl.style.setProperty('--b', (bolumBul(u.bolum) || {}).renk || bolumEl.style.getPropertyValue('--b') || '#3a2a1a');
 		panelEl.innerHTML = '<div class="panel-arka" data-is="geri"></div><div class="panel-kutu' + (u.foto ? '' : ' fotosuz') + (tukendi(u) ? ' tukendi' : '') + '" role="dialog" aria-modal="true" aria-labelledby="p-ad">' +
 			(u.foto ? foto(u.foto, u.ad, 'p-foto') : '') + '<div class="p-govde"><h2 class="p-ad" id="p-ad">' + kac(u.ad) + '</h2>' +
-			(u.aciklama ? '<p class="p-aciklama">' + kac(u.aciklama) + '</p>' : '') + '<div class="p-fiyat">' + fiyat(u) + '</div>' + mesajDugme('Bunu sor', u.id) + '</div>' +
+			(u.aciklama ? '<p class="p-aciklama">' + kac(u.aciklama) + '</p>' : '') + '<div class="p-fiyat">' + fiyat(u) + '</div>' + besinBlok(u, true) + mesajDugme('Bunu sor', u.id) + '</div>' +
 			'<button class="p-kapat" type="button" data-is="geri" aria-label="Kapat">' + KAPAT + '</button></div>';
 		goster(panelEl);
 		it({ e: 'urun', id: id, kaynak: kaynak });
@@ -880,10 +917,11 @@
 			h += '<section class="sm-bolum" id="sade-' + kac(b.id) + '" data-v="' + kac(b.id) + '" aria-labelledby="sb-' + kac(b.id) + '"><h2 id="sb-' + kac(b.id) + '">' + kac(b.ad) + '</h2>' + SUS;
 			if (b.tip === 'galeri') { h += (op.aciklama ? '<p class="sm-not">' + kac(op.aciklama) + '</p>' : '') + '<div class="sm-sor">' + mesajDugme('Özel pasta için yaz') + '</div></section>'; return; }
 			h += '<ul>' + urunleri(b.id).map(function (u) {
-				var f = yok(u) ? '<span class="sm-sor-f">Fiyatını sor</span>' : tutar(u), br = !yok(u) && u.birim ? '<span class="sm-birim">/ ' + kac(u.birim) + '</span>' : '', et = gunEt(u) + tukRozet(u);
+				var f = yok(u) ? '<span class="sm-sor-f">Fiyatını sor</span>' : tutar(u), br = !yok(u) && u.birim ? '<span class="sm-birim">/ ' + kac(u.birim) + '</span>' : '', et = gunEt(u) + tukRozet(u), kc = kcalYazi(u, 'sm-kcal');
+				/* kcal ekranda alt satırın sağında; yazdırmada satır sayısı artmasın diye adın yanında (sm-kcal-y) */
 				return '<li><button class="sm-urun' + (u.foto ? ' fotolu' : '') + (tukendi(u) ? ' tukendi' : '') + '" type="button" data-is="urun" data-v="' + kac(u.id) + '">' + (u.foto ? foto(u.foto, u.ad, 'sm-foto', true, true) : '') +
-					'<span class="sm-govde"><span class="sm-satir"><span class="sm-urun-ad">' + kac(u.ad) + '</span><span class="sm-nokta" aria-hidden="true"></span><span class="sm-fiyat">' + f + '</span></span>' +
-					(u.aciklama || br || et ? '<span class="sm-alt2">' + (et ? '<span class="sm-etler">' + et + '</span>' : '') + '<span class="sm-aciklama">' + kac(u.aciklama || '') + '</span>' + br + '</span>' : '') + '</span></button></li>';
+					'<span class="sm-govde"><span class="sm-satir"><span class="sm-urun-ad">' + kac(u.ad) + '</span>' + kcalYazi(u, 'sm-kcal-y', true) + '<span class="sm-nokta" aria-hidden="true"></span><span class="sm-fiyat">' + f + '</span></span>' +
+					(u.aciklama || br || et || kc ? '<span class="sm-alt2">' + (et ? '<span class="sm-etler">' + et + '</span>' : '') + '<span class="sm-aciklama">' + kac(u.aciklama || '') + '</span>' + br + kc + '</span>' : '') + '</span></button></li>';
 			}).join('') + '</ul></section>';
 		});
 		var ig = instaAd(ki.instagram), tl = String(ki.telefon || '').replace(/[^\d+]/g, '');
@@ -892,7 +930,7 @@
 		var alt = (ki.adres ? '<p>' + kac(ki.adres) + '</p>' : '') + (tl ? '<p><a class="sm-tel" href="tel:' + kac(tl) + '">' + kac(ki.telefon) + '</a></p>' : '') +
 			(tel() ? '<a class="sm-wa" href="https://wa.me/' + tel() + '" rel="noopener">WhatsApp\'tan yaz</a>' : '') +
 			(ig ? '<p><a class="sm-ig" href="https://www.instagram.com/' + encodeURIComponent(ig) + '/" rel="noopener">Instagram: @' + kac(ig) + '</a></p>' : '');
-		h += '<footer class="sm-son">' + SUS + '<p class="sm-son-ad">' + kac(ki.ad || '') + '</p>' + alt + '<div class="sm-baglar">' + baglar + '</div>' + (yz ? '<p class="sm-yazdir-alt">' + kac(yz) + '</p>' : '') + '</footer>';
+		h += '<footer class="sm-son">' + SUS + '<p class="sm-son-ad">' + kac(ki.ad || '') + '</p>' + alt + '<div class="sm-baglar">' + baglar + '</div>' + (besinliVar(K.urunler) ? '<p class="sm-besin-not">' + kac(besinNot()) + '</p>' : '') + (yz ?'<p class="sm-yazdir-alt">' + kac(yz) + '</p>' : '') + '</footer>';
 		sadeEl.innerHTML = h;
 		sadeEl.setAttribute('aria-labelledby', 'sade-ad');
 		if (bs[0]) sadeCip(bs[0].id, false);

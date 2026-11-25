@@ -377,6 +377,46 @@ a.goze-logo{color:inherit;text-decoration:none;cursor:pointer}
 .sm-link svg{flex:none;width:18px;height:18px;fill:none;stroke:var(--altin-k);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 
 /* ============================================================
+   BESİN DEĞERLERİ (urun.besin varsa): kalori serif ve belirgin, öğeler küçük, porsiyon en küçük; birimler sönük
+   ============================================================ */
+.ek-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.besin{min-width:0}
+.b-kcal{font:400 21px/1.1 var(--fb);color:var(--krem);font-variant-numeric:lining-nums}
+.b-br{font:500 .6em/1 var(--fg);letter-spacing:.02em;color:var(--krem-2)}
+.b-ogeler{display:flex;flex-wrap:wrap;gap:1px .8em;margin-top:5px;font-size:12.5px;line-height:1.4;color:var(--krem)}
+.b-oge{white-space:nowrap}
+.b-oge dt,.b-oge dd{display:inline}
+.b-oge dt{color:var(--krem-2)}
+.b-ogeler .b-br{font-size:1em;font-weight:400}
+.b-por{margin-top:5px;font-size:11px;line-height:1.35;color:color-mix(in srgb,var(--krem) 64%,transparent);text-wrap:pretty}
+/* döner vitrin: ad ve fiyat ortada; altında solda içindekiler, sağda besin (ince altın çizgiyle ayrılır) */
+.dv-bilgi.besinli{min-height:206px}
+.dv-detay.iki{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);margin-top:12px;text-align:left}
+.dv-detay.iki .dv-aciklama{align-self:start;max-height:4.2em;margin:0;padding-right:14px;font-size:14.5px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.dv-detay.iki .besin{padding-left:14px;border-left:1px solid color-mix(in srgb,var(--altin) 40%,transparent)}
+.dv-detay.tek{margin-top:10px}
+.dv-detay.tek .dv-aciklama{display:none}
+.dv-detay.tek .b-ogeler{justify-content:center}
+.dv-detay.tek .b-por{max-width:30ch;margin-left:auto;margin-right:auto}
+/* panel ve yıldız ürün: fiyatın altında, aynı dil */
+.p-govde .besin{margin-top:14px;padding-top:12px;border-top:1px solid var(--krem-3)}
+.p-govde .b-ogeler{font-size:13.5px}
+.p-govde .b-por{font-size:12px}
+/* yıldız ürün fotoğrafın altına sığsın diye tek satır: kalori ve öğeler yan yana, altında bildirim */
+.fs-alt .besin{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px .9em;margin:-6px 0 16px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.fs-alt .b-kcal{font-size:19px}
+.fs-alt .b-ogeler{margin-top:0;font-size:13px}
+.fs-alt .b-por{flex-basis:100%;margin-top:2px;font-size:11.5px;color:var(--krem-2)}
+/* bölüm listesi: fiyatın altında küçük kcal */
+.s-fiyat.kcalli{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.s-kcal{font-size:12px;line-height:1;color:var(--krem-2);white-space:nowrap}
+.bl-not{margin-top:6px;font-size:12px;line-height:1.35;text-align:center;color:var(--krem-2)}
+/* tüm menü: alt satırın sağında çok küçük kcal; yazdırma eşi ekranda gizli */
+.sm-kcal{flex:none;font-size:12.5px;line-height:1.4;color:var(--murekkep);white-space:nowrap}
+.sm-kcal-y{display:none}
+.sm-besin-not{margin-top:14px;font-size:12.5px;line-height:1.4;color:var(--murekkep)}
+
+/* ============================================================
    YAZDIR: yalnız "Tüm menü" listesi; A4 dikey, 12 mm; iki sütun; beyaz zemin, koyu mürekkep
    ============================================================ */
 @media print{
@@ -414,4 +454,8 @@ a.goze-logo{color:inherit;text-decoration:none;cursor:pointer}
   #sade .sm-son{column-span:all;margin:3mm 0 0;padding:2.5mm 0 0;border-top:.3mm solid #111;text-align:center}
   #sade .sm-son>*{display:none!important}
   #sade .sm-son>.sm-yazdir-alt{display:block!important;font-size:9.5pt;color:#222}
+  /* besin: kcal adın yanında küçük gri (satır eklemez); bildirim alt bilgide tek satır */
+  #sade .sm-kcal{display:none!important}
+  #sade .sm-kcal-y{display:inline;flex:none;font-size:7.5pt;font-weight:400;color:#555;white-space:nowrap}
+  #sade .sm-son>.sm-besin-not{display:block!important;margin:.8mm 0 0;font-size:8pt;color:#444}
 }
